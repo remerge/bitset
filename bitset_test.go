@@ -437,6 +437,29 @@ func TestUnion(t *testing.T) {
 	}
 }
 
+func TestFold(t *testing.T) {
+	s := uint(64 * 5)
+	a := New(s)
+	b := New(s * 2)
+	for i := uint(1); i < s; i += 2 {
+		a.Set(i)
+		b.Set((i + s) - 1)
+	}
+	c := a.Fold(b)
+	d := b.Fold(a)
+
+	if !c.Equal(d) {
+		t.Errorf("Fold should be symmetric")
+	}
+
+	for i := uint(0); i < s; i++ {
+		if !c.Test(i) {
+			t.Errorf("Bit should be set after fold idx=%d", i)
+		}
+	}
+
+}
+
 func TestInPlaceUnion(t *testing.T) {
 	a := New(100)
 	b := New(200)

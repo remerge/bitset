@@ -360,6 +360,23 @@ func (b *BitSet) InPlaceIntersection(compare *BitSet) {
 	return
 }
 
+// index into the larger bitset module the lenght of the smaller set
+func (b *BitSet) Fold(compare *BitSet) (result *BitSet) {
+	panicIfNull(b)
+	panicIfNull(compare)
+	b, compare = sortByLength(b, compare)
+	if b.length%64 != 0 || compare.length%64 != 0 {
+		panic("only 64 bit aligned bitsets are supported at the moment")
+	}
+	result = b.Clone()
+	l := b.wordCount()
+	for i, word := range compare.set {
+		mi := i % l
+		result.set[mi] = word | b.set[mi]
+	}
+	return
+}
+
 // Union of base set and other set
 // This is the BitSet equivalent of | (or)
 func (b *BitSet) Union(compare *BitSet) (result *BitSet) {
