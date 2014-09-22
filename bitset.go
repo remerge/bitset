@@ -360,6 +360,28 @@ func (b *BitSet) InPlaceIntersection(compare *BitSet) {
 	return
 }
 
+// Computes the cardinality of the intersection
+func (b *BitSet) FoldedIntersectionCardinality(compare *BitSet) uint {
+	panicIfNull(b)
+	panicIfNull(compare)
+	b, compare = sortByLength(b, compare)
+	if b.length%64 != 0 || compare.length%64 != 0 {
+		panic("only 64 bit aligned bitsets are supported at the moment")
+	}
+	var cnt uint64
+	for i := 0; i < len(compare.set); i += len(b.set) {
+		t := len(b.set)
+		if i+t > len(compare.set) {
+			t = len(compare.set) - i
+		}
+		// fmt.Println("i = ", i)
+		// fmt.Printf("  b[0:%d] - %s\n")
+		// fmt.Printf("  compare[%d:%d]\n", i, i+t)
+		cnt += popcntAndSlice(b.set[0:t], compare.set[i:i+t])
+	}
+	return uint(cnt)
+}
+
 // index into the larger bitset module the lenght of the smaller set
 func (b *BitSet) Fold(compare *BitSet) (result *BitSet) {
 	panicIfNull(b)
@@ -528,8 +550,8 @@ func (b *BitSet) DumpAsBits() string {
 		return "."
 	}
 	buffer := bytes.NewBufferString("")
-	i := len(b.set) - 1
-	for ; i >= 0; i-- {
+	// i := len(b.set) - 1
+	for i := 0; i < len(b.set); i++ {
 		fmt.Fprintf(buffer, "%064b.", b.set[i])
 	}
 	return string(buffer.Bytes())

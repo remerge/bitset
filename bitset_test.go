@@ -460,6 +460,38 @@ func TestFold(t *testing.T) {
 
 }
 
+func TestFoldIntersectionCardinality(t *testing.T) {
+	s := uint(64 * 5)
+	a := New(s)
+	b := New(s*2 + 64)
+	for i := uint(2); i < s; i += 4 {
+		a.Set(i)
+		b.Set((i + s) - 1)
+		b.Set(i + s)
+	}
+	b.Set((s * 2) + 2)
+	b.Set((s * 2) + 6)
+	c := a.FoldedIntersectionCardinality(b)
+	if c != (64*5)/4+2 {
+		t.Errorf("Fold and #bits should be 82 was %d", c)
+	}
+}
+
+// OR
+// func TestFoldIntersectionCardinality(t *testing.T) {
+// 	s := uint(64 * 5)
+// 	a := New(s)
+// 	b := New(s * 2)
+// 	for i := uint(2); i < s; i += 4 {
+// 		a.Set(i)
+// 		b.Set((i + s) - 1)
+// 	}
+// 	c := a.FoldedIntersectionCardinality(b)
+// 	if c != 32*5 {
+// 		t.Errorf("Fold #bits should be 160 was %d", c)
+// 	}
+// }
+
 func TestInPlaceUnion(t *testing.T) {
 	a := New(100)
 	b := New(200)
@@ -771,5 +803,17 @@ func BenchmarkSparseIterate(b *testing.B) {
 		for i, e := s.NextSet(0); e; i, e = s.NextSet(i + 1) {
 			c++
 		}
+	}
+}
+
+func BenchmarkFold(bb *testing.B) {
+	bb.StopTimer()
+	s := uint(64 * 100000000)
+	a := New(s)
+	b := New(s * 2)
+	bb.StartTimer()
+
+	for j := 0; j < bb.N; j++ {
+		a.Fold(b)
 	}
 }
