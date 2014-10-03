@@ -6,6 +6,7 @@ env:
 - PATH=$HOME/gopath/bin:$PATH
 script:
 - git config --global url.git@github.com:.insteadof https://github.com/
+- make dep
 - make build
 - make test
 notifications:
