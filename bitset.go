@@ -383,22 +383,49 @@ func (b *BitSet) FoldedIntersectionCardinality(compare *BitSet) uint {
 }
 
 // Computes the cardinality of the union
-func (b *BitSet) FoldedUnionCardinality(compare *BitSet) uint {
+func (b *BitSet) FoldedUnionCardinality(compare *BitSet) (uint, *BitSet, *BitSet) {
 	panicIfNull(b)
 	panicIfNull(compare)
 	b, compare = sortByLength(b, compare)
 	if b.length%64 != 0 || compare.length%64 != 0 {
 		panic("only 64 bit aligned bitsets are supported at the moment")
 	}
-	var cnt uint64
-	for i := 0; i < len(compare.set); i += len(b.set) {
-		t := len(b.set)
-		if i+t > len(compare.set) {
-			t = len(compare.set) - i
-		}
-		cnt += popcntOrSlice(b.set[0:t], compare.set[i:i+t])
-	}
-	return uint(cnt)
+
+	fold := compare.FoldTo(int(b.length))
+
+	return uint(popcntOrSlice(fold.set, b.set)), b, fold
+
+	// // var cnt uint64
+	// // t := len(b.set)
+
+	// tmp := New(b.length)
+	// l := tmp.wordCount()
+	// for i, word := range compare.set {
+	// 	mi := i % l
+	// 	tmp.set[mi] = word | tmp.set[mi]
+	// }
+
+	// for i, word := range b.set {
+	// 	tmp.set[i] = word | tmp.set[i]
+	// }
+
+	// return uint(popcntSlice(tmp.set))
+
+	// return uint(popcntOrSlice(b.set, tmp.set))
+
+	// fmt.Printf("len(b.set)=%d len(compare.set)=%d\n", len(b.set), len(compare.set))
+	// for i := 0; i < len(compare.set); i += len(b.set) {
+	// 	if i+t > len(compare.set) {
+	// 		t = len(compare.set) - i
+	// 	}
+	// 	fmt.Println("i = ", i)
+	// 	fmt.Printf("  b[0:%d]\n", t)
+	// 	fmt.Printf("  compare[%d:%d]\n", i, i+t)
+	// 	ccc := popcntOrSlice(b.set[0:t], compare.set[i:i+t])
+	// 	fmt.Println("  union=", ccc)
+	// 	cnt += ccc
+	// }
+	// return uint(cnt)
 }
 
 // index into the larger bitset module the lenght of the smaller set
@@ -416,6 +443,16 @@ func (b *BitSet) Fold(compare *BitSet) (result *BitSet) {
 		result.set[mi] = word | b.set[mi]
 	}
 	return
+}
+
+func (b *BitSet) FoldTo(m int) (result *BitSet) {
+	tmp := New(uint(m))
+	l := tmp.wordCount()
+	for i, word := range b.set {
+		mi := i % l
+		tmp.set[mi] = word | tmp.set[mi]
+	}
+	return tmp
 }
 
 // Union of base set and other set
