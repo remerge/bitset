@@ -1,11 +1,17 @@
-sudo: false
 language: go
+
+sudo: false
+
+branches:
+  except:
+    - release
+
+branches:
+  only:
+    - master
+    - develop
+
 go:
-- 1.6
-cache:
-  directories:
-    - vendor
-install:
-- make dep
-script:
-- make test
+  - 1.5
+  - 1.6
+  - tip
