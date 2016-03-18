@@ -1,35 +1,67 @@
-PACKAGE := github.com/remerge/bitset
+PROJECT := bitset
+PACKAGE := github.com/remerge/$(PROJECT)
 
 # http://stackoverflow.com/questions/322936/common-gnu-makefile-directory-path#comment11704496_324782
 TOP := $(dir $(CURDIR)/$(word $(words $(MAKEFILE_LIST)),$(MAKEFILE_LIST)))
 
-GOOP=goop
-GO=$(GOOP) exec go
-GOFMT=gofmt -w
+GOFMT=gofmt -w -s
 
-SRCS=$(wildcard main/*.go)
-OBJS=$(patsubst main/%.go,%,$(SRCS))
+GOSRCDIR=$(GOPATH)/src/$(PACKAGE)
+GOPATHS=$(shell glide novendor)
+GOFILES=$(shell git ls-files | grep '\.go$$')
+MAINGO=$(wildcard main/*.go)
+MAIN=$(patsubst main/%.go,%,$(MAINGO))
 
-.PHONY: build clean test fmt dep
+.PHONY: build run clean lint test bench fmt dep init up gen release deploy
 
 all: build
 
 build: fmt
-	$(GO) build $(SRCS)
+	cd $(GOSRCDIR) && \
+		CGO_ENABLED=0 \
+		go build $(MAINGO)
+
+run: build
+	./$(MAIN)
 
 clean:
-	$(GO) clean
-	rm -f $(OBJS)
+	go clean
+	rm -f $(MAIN)
+	rm -rf $(TOP)/vendor/
 
-test:
-	go get github.com/smartystreets/goconvey
-	$(GO) test
+lint:
+	cd $(GOSRCDIR) && \
+		gometalinter --vendor --errors --fast --deadline=60s -D gotype $(GOPATHS)
+
+test: build lint
+	cd $(GOSRCDIR) && \
+		go test -timeout 60s $(GOPATHS)
+
+bench:
+	cd $(GOSRCDIR) && \
+		go test -bench=. -cpu 4 $(GOPATHS)
 
 fmt:
-	$(GOFMT) .
+	$(GOFMT) $(GOFILES)
 
 dep:
-	go get github.com/nitrous-io/goop
-	goop install
-	mkdir -p $(dir $(TOP)/.vendor/src/$(PACKAGE))
-	ln -nfs $(TOP) $(TOP)/.vendor/src/$(PACKAGE)
+	go get -u github.com/Masterminds/glide
+	go get -u github.com/alecthomas/gometalinter
+	gometalinter --install --update
+	cd $(GOSRCDIR) && glide install
+
+init:
+	cd $(GOSRCDIR) && \
+		glide init
+
+up:
+	cd $(GOSRCDIR) && \
+		glide update
+
+gen:
+	cd $(GOSRCDIR) && \
+		go generate $(GOPATHS)
+	$(GOFMT) $(GOFILES)
+
+release:
+	git push origin master master:production

@@ -1,14 +1,11 @@
+sudo: false
 language: go
 go:
-- 1.3.1
-- tip
-env:
-- PATH=$HOME/gopath/bin:$PATH
-script:
+- 1.6
+cache:
+  directories:
+    - vendor
+install:
 - make dep
-- make build
+script:
 - make test
-notifications:
-  email: false
-  slack:
-    secure: AllObcfdayYCKOfiyGGn3F3otlv48XY8YHyWM1h6tMidC4kTCTNC+C0AMLdzETELPlCCQsKgwCujNWite3ohQdHw62fHLnBsZ05ttmjHnhrYha/kKK2fyKnBiXN5QWYScwgsiGU6JWPJXxGjZ3zS4tfVR9zNPqnkRMfppPArnsY=
