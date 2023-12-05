@@ -1,109 +1,100 @@
-# MAKEFILE
-#
-# @author      Nicola Asuni <nicola@cognitivelogic.com>
-# @link        https://github.com/willf/bitset
-# ------------------------------------------------------------------------------
+PROJECT_ID := bitset
+PROJECT_NAME := BitSet for Go
+PROJECT_REPO := github.com/remerge/$(PROJECT_ID)
 
-# List special make targets that are not associated with files
-.PHONY: help all qa test format fmtcheck vet lint coverage docs deps clean nuke
+# Provide local development fallbacks if there are no CI variables
+DEV_WHOAMI := $(shell whoami)
+DEV_COMMIT := dev.$(DEV_WHOAMI).$(shell git rev-parse --short HEAD)
 
-# Use bash as shell (Note: Ubuntu now uses dash which doesn't support PIPESTATUS).
-SHELL=/bin/bash
+# Set CI variables from GitHub Actions workflow run
+CI_COMMIT ?= $(or $(GITHUB_SHA), $(DEV_COMMIT))
+CI_REPO ?= $(or $(GITHUB_REPOSITORY), $(PROJECT_REPO))
+CI_NUM ?= $(or $(GITHUB_RUN_ID), $(DEV_WHOAMI))
 
-# Project owner
-OWNER=willf
+# Base URL of our Google Cloud Artifact Registry for Docker images being
+# deployed as Nomad service jobs by GitHub Actions workflows or local divert
+SERVICES_ARTIFACT_REGISTRY := europe-west4-docker.pkg.dev/artifact-registry-ff9b/services/
 
-# Project name
-PROJECT=bitset
+# Use bash instead of sh as the shell to run commands
+# https://www.gnu.org/software/make/manual/html_node/Choosing-the-Shell.html
+SHELL = bash
 
-# Name of RPM or DEB package
-PKGNAME=${OWNER}-${PROJECT}
+# Show auto-generated help text when invoking make without a target
+# https://www.gnu.org/software/make/manual/html_node/Special-Variables.html
+.DEFAULT_GOAL := help
 
-# Go lang path. Set if necessary
-# GOPATH=$(shell readlink -f $(shell pwd)/../../../../)
+.PHONY: help
+help: ## generate help text from Makefile comments
+	@grep -hE '^[a-zA-Z_0-9%-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+	awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
-# Current directory
-CURRENTDIR=$(shell pwd)
+# https://www.gnu.org/software/make/manual/html_node/Double_002dColon.html
+.PHONY: install
+install:: ## prepare environment and install dependencies
+	@:
 
-# --- MAKE TARGETS ---
+.PHONY: update
+update:: ## update environment and dependencies
+	@:
 
-# Display general help about this command
-help:
-	@echo ""
-	@echo "$(PROJECT) Makefile."
-	@echo "The following commands are available:"
-	@echo ""
-	@echo "    make qa         : Run all the tests"
-	@echo "    make test       : Run the unit tests"
-	@echo ""
-	@echo "    make format     : Format the source code"
-	@echo "    make fmtcheck   : Check if the source code has been formatted"
-	@echo "    make vet        : Check for syntax errors"
-	@echo "    make lint       : Check for style errors"
-	@echo "    make coverage   : Generate the coverage report"
-	@echo ""
-	@echo "    make docs       : Generate source code documentation"
-	@echo ""
-	@echo "    make deps       : Get the dependencies"
-	@echo "    make clean      : Remove any build artifact"
-	@echo "    make nuke       : Deletes any intermediate file"
-	@echo ""
+.PHONY: generate
+generate:: ## generate documentation, configuration, schemas, etc
+	@:
 
-# Alias for help target
-all: help
+.PHONY: check
+check:: ## run formatters and linters
+	@:
 
-# Run the unit tests
-test:
-	@mkdir -p target/test
-	@mkdir -p target/report
-	GOPATH=$(GOPATH) go test -covermode=count -coverprofile=target/report/coverage.out -bench=. -race -v ./... | tee >(PATH=$(GOPATH)/bin:$(PATH) go-junit-report > target/test/report.xml); test $${PIPESTATUS[0]} -eq 0
+.PHONY: test
+test:: ## run unit and integration tests
+	@:
 
-# Format the source code
-format:
-	@find ./ -type f -name "*.go" -exec gofmt -w {} \;
+.PHONY: build
+build:: ## run build steps and create artifact
+	@:
 
-# Check if the source code has been formatted
-fmtcheck:
-	@mkdir -p target
-	@find ./ -type f -name "*.go" -exec gofmt -d {} \; | tee target/format.diff
-	@test ! -s target/format.diff || { echo "ERROR: the source code has not been formatted - please use 'make format' or 'gofmt'"; exit 1; }
+.PHONY: clean
+clean:: ## remove build artifacts and caches
+	@:
 
-# Check for syntax errors
-vet:
-	GOPATH=$(GOPATH) go vet ./...
+.PHONY: reset
+reset: ## cleanup and reset repository to remote state
+ifeq ($(FORCE),1)
+	git reset --hard @{upstream}
+	git clean -fdx
+else
+	@echo -e "\u001b[41mThis is a dangerous operation – use \`make reset FORCE=1' to execute\u001b[0m"
+	@echo "Would execute \`git reset --hard @{upstream}'"
+	@echo "Would execute \`git clean -fdx'"
+	@git clean -ndx
+endif
 
-# Check for style errors
-lint:
-	GOPATH=$(GOPATH) PATH=$(GOPATH)/bin:$(PATH) golint ./...
+## copier
 
-# Generate the coverage report
-coverage:
-	GOPATH=$(GOPATH) go tool cover -html=target/report/coverage.out -o target/report/coverage.html
+.PHONY: copier-copy
+copier-copy: ## copy template without merging updates
+	copier recopy$(if $(FORCE), -f,)$(if $(REF), -r $(REF),)
 
-# Generate source docs
-docs:
-	@mkdir -p target/docs
-	nohup sh -c 'GOPATH=$(GOPATH) godoc -http=127.0.0.1:6060' > target/godoc_server.log 2>&1 &
-	wget --directory-prefix=target/docs/ --execute robots=off --retry-connrefused --recursive --no-parent --adjust-extension --page-requisites --convert-links http://127.0.0.1:6060/pkg/github.com/${OWNER}/${PROJECT}/ ; kill -9 `lsof -ti :6060`
-	@echo '<html><head><meta http-equiv="refresh" content="0;./127.0.0.1:6060/pkg/github.com/'${OWNER}'/'${PROJECT}'/index.html"/></head><a href="./127.0.0.1:6060/pkg/github.com/'${OWNER}'/'${PROJECT}'/index.html">'${PKGNAME}' Documentation ...</a></html>' > target/docs/index.html
+.PHONY: copier-update
+copier-update: ## update project from copier template
+	copier update$(if $(FORCE), -f,)$(if $(REF), -r $(REF),)
+update:: copier-update
 
-# Alias to run targets: fmtcheck test vet lint coverage
-qa: fmtcheck test vet lint coverage
+## pre-commit
 
-# --- INSTALL ---
+.PHONY: pre-commit-install
+pre-commit-install: ## install pre-commit hook
+	pre-commit install -t pre-commit -t prepare-commit-msg -t commit-msg
 
-# Get the dependencies
-deps:
-	GOPATH=$(GOPATH) go get ./...
-	GOPATH=$(GOPATH) go get github.com/golang/lint/golint
-	GOPATH=$(GOPATH) go get github.com/jstemmer/go-junit-report
-	GOPATH=$(GOPATH) go get github.com/axw/gocov/gocov
+.PHONY: pre-commit-check
+pre-commit-check: ## run pre commit hooks
+	pre-commit run --all-files
+check:: pre-commit-check
 
-# Remove any build artifact
-clean:
-	GOPATH=$(GOPATH) go clean ./...
+.PHONY: pre-commit-clean
+pre-commit-clean: ## remove pre-commit and cached repositories
+	pre-commit uninstall
+	pre-commit clean
+clean:: pre-commit-clean
 
-# Deletes any intermediate file
-nuke:
-	rm -rf ./target
-	GOPATH=$(GOPATH) go clean -i ./...
+-include *.mk

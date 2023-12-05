@@ -33,7 +33,6 @@ Example use:
 
 As an alternative to BitSets, one should check out the 'big' package,
 which provides a (less set-theoretical) view of bitsets.
-
 */
 package bitset
 
@@ -370,7 +369,6 @@ func (b *BitSet) InPlaceIntersection(compare *BitSet) {
 	if compare.length > 0 {
 		b.extendSetMaybe(compare.length - 1)
 	}
-	return
 }
 
 // Computes the cardinality of the intersection
