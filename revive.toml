@@ -7,7 +7,7 @@ warningCode = 1
 # [rule.add-constant]
 [rule.atomic]
 [rule.blank-imports]
-[rule.bool-literal-in-expr]
+# [rule.bool-literal-in-expr]
 [rule.confusing-naming]
 [rule.confusing-results]
 [rule.constant-logical-expr]
